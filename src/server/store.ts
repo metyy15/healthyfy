@@ -446,48 +446,72 @@ export async function connectMongoAndLoadState(): Promise<void> {
     return;
   }
 
-  mongoClient = new MongoClient(MONGODB_URI);
-  await mongoClient.connect();
+  try {
+    mongoClient = new MongoClient(MONGODB_URI, {
+      // A serverless function has a short life, so the connection has to
+      // fail fast rather than hold the invocation open.
+      serverSelectionTimeoutMS: 8000,
+      connectTimeoutMS: 8000,
+    });
+    await mongoClient.connect();
+  } catch (error: any) {
+    // A database that is down must not take the whole app with it. The
+    // data falls back to memory so the app still answers, and the
+    // warning says plainly that nothing is being persisted.
+    mongoClient = null;
+    console.error(
+      `Could not reach MongoDB at ${MONGODB_URI} (${error?.message}). ` +
+        'Running with temporary in-memory data; nothing will be persisted.'
+    );
+    return;
+  }
 
   const db = mongoClient.db(MONGODB_DB_NAME);
   mongoStateCollection = db.collection(MONGODB_COLLECTION);
 
-  const saved = await mongoStateCollection.findOne({ _id: 'main' });
+  try {
+    const saved = await mongoStateCollection.findOne({ _id: 'main' });
 
-  if (saved) {
-    replaceInPlace(users, saved.users);
-    replaceInPlace(familyMembers, saved.familyMembers);
-    replaceInPlace(medicalReports, saved.medicalReports);
-    replaceInPlace(notifications, saved.notifications);
-    replaceInPlace(appointments, saved.appointments);
-    replaceInPlace(medications, saved.medications);
-    replaceInPlace(allergies, saved.allergies);
-    replaceInPlace(vitals, saved.vitals);
-    replaceInPlace(caregivers, saved.caregivers);
-    replaceInPlace(alerts, saved.alerts);
-    replaceInPlace(adherence, saved.adherence);
-    replaceInPlace(reminders, saved.reminders);
-    replaceInPlace(deviceConnections, saved.deviceConnections);
-    replaceInPlace(safetyChecks, saved.safetyChecks);
-    replaceInPlace(conversations, saved.conversations);
-    replaceInPlace(followUpTasks, saved.followUpTasks);
+    if (saved) {
+      replaceInPlace(users, saved.users);
+      replaceInPlace(familyMembers, saved.familyMembers);
+      replaceInPlace(medicalReports, saved.medicalReports);
+      replaceInPlace(notifications, saved.notifications);
+      replaceInPlace(appointments, saved.appointments);
+      replaceInPlace(medications, saved.medications);
+      replaceInPlace(allergies, saved.allergies);
+      replaceInPlace(vitals, saved.vitals);
+      replaceInPlace(caregivers, saved.caregivers);
+      replaceInPlace(alerts, saved.alerts);
+      replaceInPlace(adherence, saved.adherence);
+      replaceInPlace(reminders, saved.reminders);
+      replaceInPlace(deviceConnections, saved.deviceConnections);
+      replaceInPlace(safetyChecks, saved.safetyChecks);
+      replaceInPlace(conversations, saved.conversations);
+      replaceInPlace(followUpTasks, saved.followUpTasks);
 
-    fitnessSyncByUser.clear();
-    if (saved.fitnessSyncByUser && typeof saved.fitnessSyncByUser === 'object') {
-      for (const [userId, enabled] of Object.entries(saved.fitnessSyncByUser)) {
-        fitnessSyncByUser.set(userId, Boolean(enabled));
+      fitnessSyncByUser.clear();
+      if (saved.fitnessSyncByUser && typeof saved.fitnessSyncByUser === 'object') {
+        for (const [userId, enabled] of Object.entries(saved.fitnessSyncByUser)) {
+          fitnessSyncByUser.set(userId, Boolean(enabled));
+        }
       }
-    }
 
-    console.log(
-      `MongoDB connected. Loaded Healthyfy data from ${MONGODB_DB_NAME}.${MONGODB_COLLECTION}.`
+      console.log(
+        `MongoDB connected. Loaded Healthyfy data from ${MONGODB_DB_NAME}.${MONGODB_COLLECTION}.`
+      );
+    } else {
+      seedClinicalData();
+      await persistState();
+      console.log(
+        `MongoDB connected. Created initial Healthyfy data in ${MONGODB_DB_NAME}.${MONGODB_COLLECTION}.`
+      );
+    }
+  } catch (error: any) {
+    console.error(
+      `MongoDB query failed (${error?.message}). Running with temporary in-memory data.`
     );
-  } else {
-    seedClinicalData();
-    await persistState();
-    console.log(
-      `MongoDB connected. Created initial Healthyfy data in ${MONGODB_DB_NAME}.${MONGODB_COLLECTION}.`
-    );
+    mongoStateCollection = null;
   }
 }
 

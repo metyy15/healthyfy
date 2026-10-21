@@ -2,50 +2,21 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { PORT, isProd } from './src/server/config';
+import { app } from './src/server/app';
 import { connectMongoAndLoadState, seedClinicalData } from './src/server/store';
 import { startScheduler, stopScheduler } from './src/server/scheduler';
-import { legacyRouter } from './src/server/routes/legacy';
-import { clinicalRouter } from './src/server/routes/clinical';
-import { careRouter } from './src/server/routes/care';
-import { agentRouter } from './src/server/routes/agent';
-import { compareRouter } from './src/server/routes/compare';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const app = express();
-app.use(express.json({ limit: '25mb' }));
-
 // -------------------------------------------------------------
-// API routes
+// Local server bootstrap.
 //
-// The legacy router carries its own full paths; the newer routers
-// are mounted under /api and declare relative paths.
-// -------------------------------------------------------------
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', uptime: process.uptime(), env: isProd ? 'production' : 'development' });
-});
-
-app.use(legacyRouter);
-app.use('/api', clinicalRouter);
-app.use('/api', careRouter);
-app.use('/api', agentRouter);
-app.use('/api', compareRouter);
-
-// Malformed JSON should come back as a JSON error, not fall through to
-// the SPA handler and return HTML.
-app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (err && err.type === 'entity.parse.failed') {
-    return res.status(400).json({ error: 'Request body is not valid JSON.' });
-  }
-  if (err && err.type === 'entity.too.large') {
-    return res.status(413).json({ error: 'That upload is too large. The limit is 25 MB.' });
-  }
-  next(err);
-});
-
-// -------------------------------------------------------------
-// Vite Dev Server Integration / Static Serving
+// The Express app itself lives in src/server/app.ts so the same
+// routes can also be served by a Netlify function. This file only
+// adds the things a long-running server has and a function does not:
+// the Vite dev middleware, the static file serving and the
+// background scheduler.
 // -------------------------------------------------------------
 async function startServer() {
   await connectMongoAndLoadState();

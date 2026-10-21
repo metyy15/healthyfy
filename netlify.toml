@@ -1,0 +1,52 @@
+# Netlify deployment for Healthyfy.
+#
+# The frontend is a static Vite build. The API is an Express app
+# wrapped with serverless-http, so there is one implementation of
+# the routes whether it runs locally or here. The background work
+# (reminders, medication prompts, alert escalation, the daily
+# briefing) runs as a scheduled function, because a Netlify function
+# has no long-lived process.
+#
+# Environment variables to set in the Netlify UI, under Site settings
+# -> Environment variables, and mark them as needed by the functions:
+#
+#   MONGODB_URI       mongodb+srv://...   (MongoDB Atlas free tier)
+#   JWT_SECRET        a long random string
+#   GEMINI_API_KEY    from https://aistudio.google.com/apikey
+#   ASI1_API_KEY      from https://asi1.ai/developer
+#   GEMINI_MODELS     optional, comma separated fallback list
+#
+# The app falls back to in-memory data if MONGODB_URI is missing or
+# unreachable, so a deploy works before the database is set up. Data
+# will not persist between cold starts until MongoDB is configured.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NPM_FLAGS = "--include=dev"
+
+[functions]
+  node_bundler = "esbuild"
+  # The API endpoints that call a model are the slow ones, so give
+  # every function the full 26 seconds Netlify allows.
+  timeout = 26
+  included_files = ["dist/**"]
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
+# Anything that is not a file and not the API is the single page app.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[functions."scheduler"]
+  schedule = "*/5 * * * *"
