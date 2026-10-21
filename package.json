@@ -14,6 +14,8 @@
     "test:render": "esbuild scripts/render-check.tsx --bundle --platform=node --format=esm --jsx=automatic --outfile=node_modules/.cache/render-check.mjs --log-level=warning --external:react --external:react-dom --external:lucide-react && node node_modules/.cache/render-check.mjs",
     "test:provider": "node scripts/provider-test.mjs",
     "test:agent": "bash scripts/test-agent.sh",
+    "netlify:dev": "netlify dev",
+    "netlify:deploy": "netlify deploy --prod",
     "reset:demo": "node scripts/reset-demo.mjs",
     "start:dev": "bash scripts/start-dev.sh"
   },
@@ -41,9 +43,10 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
-    "esbuild": "^0.28.2",
+    "esbuild": "^0.28.1",
+    "netlify-cli": "^27.14.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
-    "typescript": "^7.0.2"
+    "typescript": "^5.9.3"
   }
 }

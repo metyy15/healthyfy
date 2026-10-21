@@ -31,10 +31,12 @@
 
 [functions]
   node_bundler = "esbuild"
-  # The API endpoints that call a model are the slow ones, so give
-  # every function the full 26 seconds Netlify allows.
-  timeout = 26
   included_files = ["dist/**"]
+
+[functions."api"]
+  # The endpoints that call a model are the slow ones, so they get
+  # the full 26 seconds Netlify allows.
+  timeout = 26
 
 [[redirects]]
   from = "/api/*"
@@ -50,3 +52,4 @@
 
 [functions."scheduler"]
   schedule = "*/5 * * * *"
+  timeout = 26
