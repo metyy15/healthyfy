@@ -1,0 +1,20 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# Python (the uAgent service)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Agent secrets & generated runtime state
+services/healthyfy-agent/private_keys.json
+services/healthyfy-agent/*_data.json
+node_modules/.cache/
